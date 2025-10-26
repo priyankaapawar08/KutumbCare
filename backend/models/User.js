@@ -20,6 +20,12 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Name is required'],
     trim: true
   },
+  // ADD THIS FIELD - FIXES THE 500 ERROR
+  familyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Family',
+    
+  },
   role: {
     type: String,
     enum: ['admin', 'parent', 'member'],

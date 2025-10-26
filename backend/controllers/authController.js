@@ -2,10 +2,17 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
 // Generate JWT Token
-const generateToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
-  });
+const generateToken = (user) => {
+  return jwt.sign(
+    { 
+      id: user._id, 
+      familyId: user.familyId // ✅ ADD familyId to token
+    }, 
+    process.env.JWT_SECRET, 
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+    }
+  );
 };
 
 // @desc    Register new user
@@ -43,7 +50,7 @@ exports.register = async (req, res) => {
     });
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user);
 
     console.log('✅ [BACKEND] User registered successfully:', user.email);
 
@@ -56,6 +63,7 @@ exports.register = async (req, res) => {
         email: user.email,
         name: user.name,
         role: user.role
+        
       }
     });
   } catch (error) {
@@ -114,7 +122,7 @@ exports.login = async (req, res) => {
     }
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user);
 
     console.log('✅ [BACKEND] Login successful for:', email);
 
