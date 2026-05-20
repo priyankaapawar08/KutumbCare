@@ -126,14 +126,3 @@ Integrate charts for multiple vitals per family member.
 
 Improve responsiveness and accessibility.
 
-📜 License
-
-This project is licensed under the MIT License.
-
-👩‍💻 Author
-
-Your Name – Frontend Developer – KutumbCare
-
-
----
-
