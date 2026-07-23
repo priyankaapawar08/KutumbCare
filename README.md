@@ -1,90 +1,105 @@
-# KutumbCare - Family Health Management System (Frontend)
+## 🚀 Getting Started
 
-KutumbCare is a holistic healthcare platform for families to **monitor, manage, and enhance overall health and well-being**.  
-This repository contains the **frontend** of the KutumbCare application, built with **React, TypeScript, Tailwind CSS, and Recharts**.
+### Prerequisites
+- Node.js (v16 or higher)
+- MongoDB (local or Atlas)
+- npm or yarn
 
----
+### Installation
 
-## 🛠 Features
+1. **Clone the repository**
+```bash
+   git clone https://github.com/your-username/kutumbcare.git
+   cd kutumbcare
+```
 
-- **User Authentication**  
-  - Login and Signup pages with form validation.  
+2. **Set up the backend**
+```bash
+   cd backend
+   npm install
+```
 
-- **Dashboard**  
-  - Family overview with member cards.  
-  - Health summary cards (medications, vitals, appointments).  
-  - Trend charts for vitals using Recharts.  
+3. **Set up the frontend**
+```bash
+   cd ../frontend
+   npm install
+```
 
-- **Profile Management**  
-  - View and edit personal and family health details.  
+### Running the App
 
-- **Medical Records**  
-  - List and upload prescriptions, lab reports, and other records.  
+**Start the backend server:**
+```bash
+cd backend
+npm start
+```
+The backend runs on `http://localhost:5000`
 
-- **Medications & Vitals**  
-  - Track medications and vitals for each family member.  
-  - Add new medications and vitals.  
+**Start the frontend:**
+```bash
+cd frontend
+npm start
+```
+The frontend runs on `http://localhost:3000`
 
-- **Theme Support**  
-  - Light and dark mode toggle using ThemeContext.  
+## 🔑 Environment Variables
 
-- **Reusable Components**  
-  - Card, Chart, Button, Input, Navbar, Sidebar, etc.  
+Create a `.env` file inside the `backend/` folder:
 
-- **Utilities & Formatters**  
-  - Date, time, number, blood pressure, and other health data formatting.  
+```env
+PORT=5000
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret_key
+```
 
----
+## 🔌 API Endpoints
 
-## 💻 Tech Stack
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register a new user |
+| POST | `/api/auth/login` | Login and receive JWT |
 
-- **Frontend:** React, TypeScript  
-- **Routing:** React Router DOM  
-- **State Management:** React Context API (AuthContext & ThemeContext)  
-- **Styling:** Tailwind CSS  
-- **Charts:** Recharts  
-- **HTTP Requests:** Axios  
+### Family Members
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/members` | Get all family members |
+| POST | `/api/members` | Add a new family member |
 
----
+### Vitals
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/vitals/member/:memberId` | Get vitals for a member |
+| POST | `/api/vitals` | Add a new vital sign |
+| DELETE | `/api/vitals/:id` | Delete a vital record |
 
-## 📁 Folder Structure
+### Medications
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/medications/member/:memberId` | Get medications for a member |
+| POST | `/api/medications` | Add a new medication |
+| PUT | `/api/medications/:id` | Update a medication |
+| DELETE | `/api/medications/:id` | Delete a medication |
+| PATCH | `/api/medications/:id/toggle` | Toggle active status |
 
-src/
-├── components/ # Reusable UI components
-│ ├── Card.tsx
-│ ├── Chart.tsx
-│ ├── Navbar.tsx
-│ └── Sidebar.tsx
-├── context/ # Global state contexts
-│ ├── AuthContext.tsx
-│ └── ThemeContext.tsx
-├── pages/ # Application pages
-│ ├── Auth/
-│ │ ├── Login.tsx
-│ │ └── Signup.tsx
-│ ├── Dashboard/
-│ │ └── Dashboard.tsx
-│ ├── Profile/
-│ │ └── Profile.tsx
-│ ├── Records/
-│ │ ├── RecordsList.tsx
-│ │ └── UploadRecord.tsx
-│ ├── Medications/
-│ │ ├── MedicationList.tsx
-│ │ └── AddMedication.tsx
-│ └── Vitals/
-│ ├── VitalsList.tsx
-│ └── AddVitals.tsx
-├── routes/
-│ └── AppRoutes.tsx
-├── services/ # API service calls
-├── utils/ # Formatters and validators
-│ └── formatters.ts
-└── styles/
-└── index.css
+### Appointments
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/appointments` | Get all appointments |
+| GET | `/api/appointments/member/:memberId` | Get appointments for a member |
+| POST | `/api/appointments` | Add a new appointment |
+| DELETE | `/api/appointments/:id` | Delete an appointment |
+| PATCH | `/api/appointments/:id/status` | Update appointment status |
 
+### Reminders
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/reminders/taken` | Mark a medication as taken |
+| GET | `/api/reminders/status/:medicationId/:timing/:date` | Check if a dose was taken |
+| GET | `/api/reminders/streak/:medicationId` | Get streak data for a medication |
+| GET | `/api/reminders/history/:medicationId` | Get reminder history |
 
----
+> All routes except `/api/auth/*` require a valid JWT in the `Authorization: Bearer <token>` header.
+
 ## 📸 Screenshots
 
 ### Authentication
@@ -132,47 +147,24 @@ src/
 |---|---|
 | ![Med Docs Form](./screenshots/med%20docs%20form.png) | ![Med Docs Added](./screenshots/med%20docs%20added.png) |
 
-## ⚡ Installation
+## 🔮 Future Enhancements
 
-1. Clone the repository:
+- [ ] Move family member data fully to backend (currently partially localStorage-based)
+- [ ] Email/SMS medication reminders
+- [ ] Calendar view for appointments and medication schedules
+- [ ] Health reports export (PDF)
+- [ ] Lifestyle predictor enhancements
+- [ ] Mobile app version
+- [ ] Multi-language support
 
-```bash
-git clone https://github.com/yourusername/kutumbcare-frontend.git
-cd kutumbcare-frontend
+## 👩‍💻 Author
 
+**Priyanka** — Final Year Computer Engineering Student, VP's Kamalnayan Bajaj Institute of Engineering and Technology
 
-Install dependencies:
+## 📄 License
 
-npm install
-
-
-Start the development server:
-
-npm start
-
-
-The app should now be running at http://localhost:3000
-.
-
-🔧 Configuration
-
-API requests are handled via src/services/api.ts.
-
-Theme is managed with ThemeContext.tsx.
-
-Tailwind CSS is pre-configured in src/styles/index.css.
-
-📈 Future Enhancements
-
-Connect frontend to backend API for live data.
-
-Add notifications and reminders for medications & appointments.
-
-Integrate charts for multiple vitals per family member.
-
-Improve responsiveness and accessibility.
-
-
+This project is created for academic purposes.
 
 ---
 
+*Built with ❤️ for families who care about health.*
