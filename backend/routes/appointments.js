@@ -2,42 +2,37 @@ const mongoose = require('mongoose');
 const express = require('express');
 const router = express.Router();
 const Appointment = require('../models/Appointment');
-const { protect } = require('../middleware/auth'); // ✅ FIXED IMPORT
+const { protect } = require('../middleware/auth');
+require('../models/Member');
 
-// Create appointment
+// ✅ GET all appointments for logged-in user
+router.get('/', protect, async (req, res) => {
+  try {
+    const appointments = await Appointment.find({ createdBy: req.user._id })
+      .populate('member', 'name relation age')
+      .sort({ date: 1, time: 1 });
+
+    res.json({ success: true, appointments });
+  } catch (error) {
+    console.error('❌ Appointment GET error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ✅ CREATE appointment
 router.post('/', protect, async (req, res) => {
   try {
-    console.log('🟡 [BACKEND] Full request body:', req.body);
-
     const { member, title, doctor, date, time, location, notes } = req.body;
 
-    // Check if member ID is valid MongoDB ObjectId
+    console.log('📥 Appointment POST body:', req.body); // 👈 ADDED
+    console.log('👤 User:', req.user._id);              // 👈 ADDED
+
     if (!mongoose.Types.ObjectId.isValid(member)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid member ID format'
-      });
+      return res.status(400).json({ success: false, error: 'Invalid member ID' });
     }
-
-    // Check if all required fields exist
-    const missingFields = [];
-    if (!member) missingFields.push('member');
-    if (!title) missingFields.push('title');
-    if (!doctor) missingFields.push('doctor');
-    if (!date) missingFields.push('date');
-    if (!time) missingFields.push('time');
-
-    if (missingFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: `Missing required fields: ${missingFields.join(', ')}`
-      });
-    }
-
-    console.log('🟡 [BACKEND] Creating appointment for user:', req.user._id);
 
     const appointment = new Appointment({
-      member: member,
+      member,
       title,
       doctor,
       date,
@@ -49,121 +44,72 @@ router.post('/', protect, async (req, res) => {
     });
 
     await appointment.save();
+    await appointment.populate('member', 'name relation age');
 
-    console.log('✅ [BACKEND] Appointment created successfully:', appointment._id);
-
-    res.status(201).json({
-      success: true,
-      message: 'Appointment created successfully',
-      appointment
-    });
-
+    res.status(201).json({ success: true, appointment });
   } catch (error) {
-    console.error('❌ [BACKEND] Detailed error:', error);
-    console.error('❌ [BACKEND] Error name:', error.name);
-    console.error('❌ [BACKEND] Error message:', error.message);
-    
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create appointment: ' + error.message
-    });
+    console.error('❌ Appointment POST error:', error.message); // 👈 ADDED
+    console.error('❌ Full error:', error);                     // 👈 ADDED
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Get appointments by member
-router.get('/member/:memberId', protect, async (req, res) => { // ✅ Use 'protect'
+// ✅ GET appointments by member
+router.get('/member/:memberId', protect, async (req, res) => {
   try {
     const appointments = await Appointment.find({
       member: req.params.memberId,
       createdBy: req.user._id
-    })
-    .sort({ date: 1, time: 1 });
+    }).sort({ date: 1 });
 
-    res.json({
-      success: true,
-      appointments
-    });
-
+    res.json({ success: true, appointments });
   } catch (error) {
-    console.error('Error fetching appointments:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error('❌ Appointment GET by member error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Delete appointment
-router.delete('/:id', protect, async (req, res) => { // ✅ Use 'protect'
+// ✅ DELETE appointment
+router.delete('/:id', protect, async (req, res) => {
   try {
-    const appointment = await Appointment.findOne({
+    const appointment = await Appointment.findOneAndDelete({
       _id: req.params.id,
       createdBy: req.user._id
     });
 
     if (!appointment) {
-      return res.status(404).json({
-        success: false,
-        error: 'Appointment not found'
-      });
+      return res.status(404).json({ success: false, error: 'Appointment not found' });
     }
 
-    await Appointment.deleteOne({ _id: req.params.id });
-
-    res.json({
-      success: true,
-      message: 'Appointment deleted successfully'
-    });
-
+    res.json({ success: true, message: 'Deleted successfully' });
   } catch (error) {
-    console.error('Error deleting appointment:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error('❌ Appointment DELETE error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Update appointment status
-router.patch('/:id/status', protect, async (req, res) => { // ✅ Use 'protect'
+// ✅ UPDATE status
+router.patch('/:id/status', protect, async (req, res) => {
   try {
     const { status } = req.body;
-
     if (!['scheduled', 'completed', 'cancelled'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid status'
-      });
+      return res.status(400).json({ success: false, error: 'Invalid status' });
     }
 
     const appointment = await Appointment.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        familyId: req.user.familyId
-      },
+      { _id: req.params.id, createdBy: req.user._id },
       { status },
       { new: true }
     );
 
     if (!appointment) {
-      return res.status(404).json({
-        success: false,
-        error: 'Appointment not found'
-      });
+      return res.status(404).json({ success: false, error: 'Appointment not found' });
     }
 
-    res.json({
-      success: true,
-      message: 'Appointment updated successfully',
-      appointment
-    });
-
+    res.json({ success: true, appointment });
   } catch (error) {
-    console.error('Error updating appointment:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error('❌ Appointment PATCH error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

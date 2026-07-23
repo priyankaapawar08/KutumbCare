@@ -4,7 +4,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-
+import MedicationsSection from '../../components/MedicationsSection';
+import MedicationReminders from '../../components/MedicationReminders';
+import { addAppointment, getAppointments } from "../../services/appointmentService";
+import VitalsSection from '../../components/VitalsSection';
 import { 
   addFamilyMember, 
   getFamilyMembers, 
@@ -20,10 +23,11 @@ import {
   deleteVitalSign 
 } from "../../services/vitalsService";
 
-import { addAppointment } from "../../services/appointmentService";
+
 import { Appointment } from "../../types";
 import { deleteFamilyMember } from "../../services/memberService";
 import { addMedication, Medication, getMedicationsByMember, deleteMedication } from "../../services/medicationService";
+
 
 
 interface User {
@@ -237,6 +241,8 @@ const DocumentsManager = ({ familyMembers }: DocumentsManagerProps) => {
         <h2 className="text-2xl font-bold text-gray-800 mb-2">📄 Medical Documents</h2>
         <p className="text-gray-600 text-sm">Store and manage medical records, reports, and prescriptions</p>
       </div>
+
+    
 
       {!showUploadForm && (
         <div className="mb-6 bg-gray-50 p-4 rounded-xl">
@@ -676,6 +682,7 @@ export default function Dashboard() {
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const [hasFamily, setHasFamily] = useState(false);
+  const [appointments, setAppointments] = useState<any[]>([]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -685,12 +692,28 @@ export default function Dashboard() {
     loadFamilyData();
   }, []);
 
+  const [timingWithHours, setTimingWithHours] = useState<{[key: string]: string}>({
+  morning: '08:00',
+  afternoon: '14:00',
+  evening: '18:00',
+  night: '22:00',
+  before_meal: '07:00',
+  after_meal: '13:00'
+});
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+  // Request notification permission on load
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}, []);
 
   const loadFamilyData = async () => {
   try {
@@ -709,6 +732,15 @@ export default function Dashboard() {
     console.error('❌ [DASHBOARD] Failed to load members:', error);
     setHasFamily(false);
     setFamilyMembers([]);
+  }
+};
+
+const loadAppointments = async () => {
+  try {
+    const data = await getAppointments();
+    setAppointments(data);
+  } catch (error) {
+    console.error('Error loading appointments:', error);
   }
 };
   // Add this debug function
@@ -811,12 +843,19 @@ interface LifestylePredictorProps {
           throw new Error("Please add family members first");
         }
 
+        // ✅ CONVERT TIMING LABELS TO ACTUAL TIMES
+        const timingArray = formData.timing?.map((label: string) => {
+          return timingWithHours[label] || '09:00';
+        }) || [];
+
+        console.log('🟡 Converting timing:', formData.timing, '→', timingArray);
+
         result = await addMedication({
           memberId: formData.memberId,
           medicationName: formData.name,
           dosage: formData.dosage,
           frequency: formData.frequency,
-          timing: formData.timing || [],
+          timing: timingArray, // ✅ Send actual times like ["08:00", "14:00", "20:00"]
           startDate: formData.startDate,
           endDate: formData.endDate || undefined,
           prescribedBy: formData.prescribedBy || '',
@@ -857,7 +896,7 @@ interface LifestylePredictorProps {
       setShowAddForm(false);
       setFormData({});
       await loadFamilyData();
-      
+      await loadAppointments();
       const itemType = activeTab === "members" ? "Member" : 
                        activeTab === "vital" ? "Vital Sign" :
                        activeTab === "medications" ? "Medication" : "Appointment";
@@ -1153,7 +1192,18 @@ const renderLifestyle = () => {
         </div>
       );
 
-    case "medications":
+    // Replace your entire medication case in Dashboard with this:
+// Also add this state at the top of your Dashboard component with other useState declarations:
+// const [timingWithHours, setTimingWithHours] = useState<{[key: string]: string}>({
+//   morning: '08:00',
+//   afternoon: '14:00',
+//   evening: '18:00',
+//   night: '22:00',
+//   before_meal: '07:00',
+//   after_meal: '13:00'
+// });
+
+case "medications":
   return (
     <div className="bg-white p-6 rounded-2xl shadow-lg mb-6 border-2 border-green-200">
       <h3 className="text-xl font-bold mb-4 text-green-600">Add Medication</h3>
@@ -1218,25 +1268,213 @@ const renderLifestyle = () => {
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Timing</label>
-          <select
-            multiple
-            value={formData.timing || []}
-            onChange={(e) => {
-              const selected = Array.from(e.target.selectedOptions, option => option.value);
-              setFormData({...formData, timing: selected});
-            }}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 h-32"
-          >
-            <option value="morning">Morning</option>
-            <option value="afternoon">Afternoon</option>
-            <option value="evening">Evening</option>
-            <option value="night">Night</option>
-            <option value="before_meal">Before Meal</option>
-            <option value="after_meal">After Meal</option>
-          </select>
-          <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
+        {/* ENHANCED TIMING SECTION WITH TIME PICKERS */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Timing & Schedule ⏰
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Morning */}
+            <div className="border-2 border-gray-200 rounded-lg p-3 hover:border-green-300 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="timing-morning"
+                    checked={formData.timing?.includes('morning') || false}
+                    onChange={(e) => {
+                      const timing = formData.timing || [];
+                      if (e.target.checked) {
+                        setFormData({...formData, timing: [...timing, 'morning']});
+                      } else {
+                        setFormData({...formData, timing: timing.filter((t: string) => t !== 'morning')});
+                      }
+                    }}
+                    className="w-4 h-4 text-green-600"
+                  />
+                  <label htmlFor="timing-morning" className="text-sm font-medium text-gray-700 cursor-pointer">
+                    🌅 Morning
+                  </label>
+                </div>
+                {formData.timing?.includes('morning') && (
+                  <input
+                    type="time"
+                    value={timingWithHours?.morning || '08:00'}
+                    onChange={(e) => setTimingWithHours({...timingWithHours, morning: e.target.value})}
+                    className="p-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Afternoon */}
+            <div className="border-2 border-gray-200 rounded-lg p-3 hover:border-green-300 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="timing-afternoon"
+                    checked={formData.timing?.includes('afternoon') || false}
+                    onChange={(e) => {
+                      const timing = formData.timing || [];
+                      if (e.target.checked) {
+                        setFormData({...formData, timing: [...timing, 'afternoon']});
+                      } else {
+                        setFormData({...formData, timing: timing.filter((t : string) => t !== 'afternoon')});
+                      }
+                    }}
+                    className="w-4 h-4 text-green-600"
+                  />
+                  <label htmlFor="timing-afternoon" className="text-sm font-medium text-gray-700 cursor-pointer">
+                    ☀️ Afternoon
+                  </label>
+                </div>
+                {formData.timing?.includes('afternoon') && (
+                  <input
+                    type="time"
+                    value={timingWithHours?.afternoon || '14:00'}
+                    onChange={(e) => setTimingWithHours({...timingWithHours, afternoon: e.target.value})}
+                    className="p-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Evening */}
+            <div className="border-2 border-gray-200 rounded-lg p-3 hover:border-green-300 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="timing-evening"
+                    checked={formData.timing?.includes('evening') || false}
+                    onChange={(e) => {
+                      const timing = formData.timing || [];
+                      if (e.target.checked) {
+                        setFormData({...formData, timing: [...timing, 'evening']});
+                      } else {
+                        setFormData({...formData, timing: timing.filter((t : string) => t !== 'evening')});
+                      }
+                    }}
+                    className="w-4 h-4 text-green-600"
+                  />
+                  <label htmlFor="timing-evening" className="text-sm font-medium text-gray-700 cursor-pointer">
+                    🌆 Evening
+                  </label>
+                </div>
+                {formData.timing?.includes('evening') && (
+                  <input
+                    type="time"
+                    value={timingWithHours?.evening || '18:00'}
+                    onChange={(e) => setTimingWithHours({...timingWithHours, evening: e.target.value})}
+                    className="p-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Night */}
+            <div className="border-2 border-gray-200 rounded-lg p-3 hover:border-green-300 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="timing-night"
+                    checked={formData.timing?.includes('night') || false}
+                    onChange={(e) => {
+                      const timing = formData.timing || [];
+                      if (e.target.checked) {
+                        setFormData({...formData, timing: [...timing, 'night']});
+                      } else {
+                        setFormData({...formData, timing: timing.filter((t : string) => t !== 'night')});
+                      }
+                    }}
+                    className="w-4 h-4 text-green-600"
+                  />
+                  <label htmlFor="timing-night" className="text-sm font-medium text-gray-700 cursor-pointer">
+                    🌙 Night
+                  </label>
+                </div>
+                {formData.timing?.includes('night') && (
+                  <input
+                    type="time"
+                    value={timingWithHours?.night || '22:00'}
+                    onChange={(e) => setTimingWithHours({...timingWithHours, night: e.target.value})}
+                    className="p-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Before Meal */}
+            <div className="border-2 border-gray-200 rounded-lg p-3 hover:border-green-300 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="timing-before-meal"
+                    checked={formData.timing?.includes('before_meal') || false}
+                    onChange={(e) => {
+                      const timing = formData.timing || [];
+                      if (e.target.checked) {
+                        setFormData({...formData, timing: [...timing, 'before_meal']});
+                      } else {
+                        setFormData({...formData, timing: timing.filter((t : string) => t !== 'before_meal')});
+                      }
+                    }}
+                    className="w-4 h-4 text-green-600"
+                  />
+                  <label htmlFor="timing-before-meal" className="text-sm font-medium text-gray-700 cursor-pointer">
+                    🍽️ Before Meal
+                  </label>
+                </div>
+                {formData.timing?.includes('before_meal') && (
+                  <input
+                    type="time"
+                    value={timingWithHours?.before_meal || '07:00'}
+                    onChange={(e) => setTimingWithHours({...timingWithHours, before_meal: e.target.value})}
+                    className="p-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* After Meal */}
+            <div className="border-2 border-gray-200 rounded-lg p-3 hover:border-green-300 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="timing-after-meal"
+                    checked={formData.timing?.includes('after_meal') || false}
+                    onChange={(e) => {
+                      const timing = formData.timing || [];
+                      if (e.target.checked) {
+                        setFormData({...formData, timing: [...timing, 'after_meal']});
+                      } else {
+                        setFormData({...formData, timing: timing.filter((t : string) => t !== 'after_meal')});
+                      }
+                    }}
+                    className="w-4 h-4 text-green-600"
+                  />
+                  <label htmlFor="timing-after-meal" className="text-sm font-medium text-gray-700 cursor-pointer">
+                    🍴 After Meal
+                  </label>
+                </div>
+                {formData.timing?.includes('after_meal') && (
+                  <input
+                    type="time"
+                    value={timingWithHours?.after_meal || '13:00'}
+                    onChange={(e) => setTimingWithHours({...timingWithHours, after_meal: e.target.value})}
+                    className="p-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            ⏰ Check the times you need and set specific hours for medication reminders
+          </p>
         </div>
 
         <div>
@@ -1314,7 +1552,7 @@ const renderLifestyle = () => {
             className="w-4 h-4"
           />
           <label htmlFor="reminderEnabled" className="text-sm text-gray-700">
-            🔔 Enable medication reminders (coming soon)
+            🔔 Enable medication reminders with streak tracking 🔥
           </label>
         </div>
 
@@ -1351,8 +1589,7 @@ const renderLifestyle = () => {
       </form>
     </div>
   );
-
-    case "appointment":
+  case "appointment":
       return (
         <div className="bg-white p-6 rounded-2xl shadow-lg mb-6 border-2 border-purple-200">
           <h3 className="text-xl font-bold mb-4 text-purple-600">Add Appointment</h3>
@@ -1566,6 +1803,11 @@ const renderLifestyle = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <span className="mr-2">📈</span> Recent Activity
             </h3>
+            {/* ✅ ADD MEDICATION REMINDERS WIDGET HERE - SHOWS ON ALL TABS */}
+        <div className="px-6 pt-6">
+          <MedicationReminders familyMembers={familyMembers} />
+        </div>
+
             <div className="space-y-4">
               {familyMembers.length === 0 ? (
                 <div className="text-center py-8">
@@ -1721,9 +1963,6 @@ const renderLifestyle = () => {
 };
 
   const renderVitals = () => {
-  // Move these state declarations OUTSIDE of renderVitals and put them at the top with other state
-  // For now, let's create a component-level approach
-
   return (
     <VitalsSection 
       familyMembers={familyMembers} 
@@ -1736,310 +1975,23 @@ const renderLifestyle = () => {
 
 // Add this new component BEFORE the return statement of Dashboard component
 // Add this component BEFORE the main Dashboard component's return statement
-const VitalsSection = ({ familyMembers, showAddForm, setShowAddForm, setActiveTab }: any) => {
-  const [vitalsData, setVitalsData] = useState<any[]>([]);
-  const [selectedMember, setSelectedMember] = useState<string>('');
-  const [selectedMemberName, setSelectedMemberName] = useState<string>('');
-  const [loadingVitals, setLoadingVitals] = useState(false);
 
-  const loadVitals = async (memberId: string) => {
-    try {
-      setLoadingVitals(true);
-      console.log('🟡 Loading vitals for member:', memberId);
-      const response = await getVitalsByMember(memberId);
-      console.log('✅ Vitals response:', response);
-      if (response.success) {
-        setVitalsData(response.vitals || []);
-      } else {
-        console.error('❌ Failed to load vitals:', response.error);
-        setVitalsData([]);
-      }
-    } catch (error) {
-      console.error('❌ Error loading vitals:', error);
-      setVitalsData([]);
-    } finally {
-      setLoadingVitals(false);
-    }
-  };
-
-  const handleMemberSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const memberId = e.target.value;
-    console.log('🟡 Member selected:', memberId);
-    
-    if (!memberId) {
-      setSelectedMember('');
-      setSelectedMemberName('');
-      setVitalsData([]);
-      return;
-    }
-
-    setSelectedMember(memberId);
-    
-    // Find member name
-    const member = familyMembers.find((m: FamilyMember) => m._id === memberId);
-    if (member) {
-      setSelectedMemberName(member.name);
-    }
-    
-    loadVitals(memberId);
-  };
-
-  const handleDeleteVital = async (vitalId: string) => {
-    const confirmed = window.confirm('⚠️ Are you sure you want to delete this vital record?\n\nThis action cannot be undone.');
-    if (!confirmed) return;
-
-    try {
-      const result = await deleteVitalSign(vitalId);
-      if (result.success) {
-        alert('✅ Vital record deleted successfully');
-        if (selectedMember) {
-          loadVitals(selectedMember);
-        }
-      } else {
-        throw new Error(result.error);
-      }
-    } catch (error: any) {
-      alert('❌ Failed to delete: ' + error.message);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-2xl p-6 shadow-lg">
-      {familyMembers.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4 opacity-30">❤️</div>
-          <p className="text-gray-500 text-lg">Add family members first to record vital signs</p>
-          <button
-            onClick={() => setActiveTab("members")}
-            className="mt-4 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-          >
-            Go to Family Members
-          </button>
-        </div>
-      ) : (
-        <div>
-          {/* Header */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Vital Signs Tracking</h2>
-            <p className="text-gray-600 text-sm">Monitor health metrics for your family members</p>
-          </div>
-
-          {/* Member Selection - Always visible when not in add form */}
-          {!showAddForm && (
-            <div className="mb-6 bg-gray-50 p-4 rounded-xl">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                📊 Select Family Member
-              </label>
-              <select
-                value={selectedMember}
-                onChange={handleMemberSelect}
-                className="w-full p-4 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-gray-800 font-medium cursor-pointer hover:border-red-300 transition-colors"
-                style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
-              >
-                <option value="">-- Choose a family member to view vitals --</option>
-                {familyMembers.map((member: FamilyMember) => (
-                  <option key={member._id} value={member._id}>
-                    {member.name} ({member.relation}, {member.age} years old)
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Vitals List - Only show when member is selected */}
-          {selectedMember && !showAddForm ? (
-            <div>
-              <div className="flex justify-between items-center mb-4 bg-red-50 p-4 rounded-lg">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    Vital Signs for {selectedMemberName}
-                  </h3>
-                  <p className="text-sm text-gray-600">{vitalsData.length} record(s) found</p>
-                </div>
-                <button
-                  onClick={() => setShowAddForm(true)}
-                  className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center space-x-2"
-                >
-                  <span>➕</span>
-                  <span>Add Vital</span>
-                </button>
-              </div>
-
-              {loadingVitals ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="mt-4 text-gray-600 font-medium">Loading vitals...</p>
-                </div>
-              ) : vitalsData.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-xl">
-                  <div className="text-6xl mb-4 opacity-30">📊</div>
-                  <p className="text-gray-500 text-lg font-medium mb-2">No vital signs recorded yet</p>
-                  <p className="text-gray-400 text-sm mb-6">Start tracking health metrics for {selectedMemberName}</p>
-                  <button
-                    onClick={() => setShowAddForm(true)}
-                    className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold inline-flex items-center space-x-2"
-                  >
-                    <span>➕</span>
-                    <span>Add First Vital</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {vitalsData.map((vital: any) => (
-                    <div key={vital._id} className="border-2 border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-red-300 transition-all bg-white">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-3">
-                            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-2xl">
-                              {vital.vitalType === 'blood_pressure' ? '💓' :
-                               vital.vitalType === 'temperature' ? '🌡️' :
-                               vital.vitalType === 'weight' ? '⚖️' :
-                               vital.vitalType === 'heart_rate' ? '💗' :
-                               vital.vitalType === 'blood_sugar' ? '🩸' :
-                               vital.vitalType === 'oxygen_level' ? '🫁' :
-                               vital.vitalType === 'height' ? '📏' :
-                               vital.vitalType === 'bmi' ? '📊' : '📈'}
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-gray-900 text-lg capitalize">
-                                {vital.vitalType.replace(/_/g, ' ')}
-                              </h4>
-                              <p className="text-sm text-gray-500 flex items-center space-x-2">
-                                <span>📅 {new Date(vital.date).toLocaleDateString('en-US', { 
-                                  year: 'numeric', 
-                                  month: 'short', 
-                                  day: 'numeric' 
-                                })}</span>
-                                <span>•</span>
-                                <span>🕐 {vital.time}</span>
-                              </p>
-                            </div>
-                          </div>
-                          <div className="ml-14 bg-gray-50 p-3 rounded-lg">
-                            <p className="text-2xl font-bold text-gray-900">
-                              {vital.value.systolic && vital.value.diastolic
-                                ? `${vital.value.systolic}/${vital.value.diastolic} ${vital.value.unit}`
-                                : `${vital.value.measurement} ${vital.value.unit}`
-                              }
-                            </p>
-                            {vital.notes && (
-                              <p className="text-sm text-gray-600 mt-2 italic">
-                                📝 {vital.notes}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteVital(vital._id)}
-                          className="text-red-600 hover:text-white hover:bg-red-600 p-3 rounded-lg transition-all ml-4 border-2 border-red-200 hover:border-red-600"
-                          title="Delete vital record"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : !showAddForm ? (
-            <div className="text-center py-16 bg-gradient-to-br from-red-50 to-pink-50 rounded-xl">
-              <div className="text-7xl mb-4 opacity-40">❤️</div>
-              <p className="text-gray-600 text-xl font-medium mb-2">Ready to Track Health</p>
-              <p className="text-gray-500">Select a family member above to view or add vital signs</p>
-            </div>
-          ) : null}
-        </div>
-      )}
-    </div>
-  );
-};
 
   const renderMedications = () => {
   return <MedicationsSection familyMembers={familyMembers} showAddForm={showAddForm} setShowAddForm={setShowAddForm} setActiveTab={setActiveTab} />;
 };
 
 // Add this AFTER VitalsSection and BEFORE the main Dashboard return
-const MedicationsSection = ({ familyMembers, showAddForm, setShowAddForm, setActiveTab }: any) => {
-  const [medicationsData, setMedicationsData] = useState<any[]>([]);
-  const [selectedMember, setSelectedMember] = useState<string>('');
-  const [selectedMemberName, setSelectedMemberName] = useState<string>('');
-  const [loadingMeds, setLoadingMeds] = useState(false);
 
-  const loadMedications = async (memberId: string) => {
-    try {
-      setLoadingMeds(true);
-      console.log('🟡 [DASHBOARD] Loading medications for member:', memberId);
-      const response = await getMedicationsByMember(memberId);
-      console.log('✅ [DASHBOARD] Medications response:', response);
-      if (response.success) {
-        setMedicationsData(response.medications || []);
-      } else {
-        console.error('❌ Failed to load medications:', response.error);
-        setMedicationsData([]);
-      }
-    } catch (error) {
-      console.error('❌ Error loading medications:', error);
-      setMedicationsData([]);
-    } finally {
-      setLoadingMeds(false);
-    }
-  };
 
-  const handleMemberSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const memberId = e.target.value;
-    console.log('🟡 Selected member:', memberId);
-    
-    if (!memberId) {
-      setSelectedMember('');
-      setSelectedMemberName('');
-      setMedicationsData([]);
-      return;
-    }
 
-    setSelectedMember(memberId);
-    const member = familyMembers.find((m: FamilyMember) => m._id === memberId);
-    if (member) {
-      setSelectedMemberName(member.name);
-    }
-    
-    loadMedications(memberId);
-  };
-
-  const handleDeleteMedication = async (medicationId: string, medName: string) => {
-    const confirmed = window.confirm(`⚠️ Are you sure you want to delete "${medName}"?`);
-    if (!confirmed) return;
-
-    try {
-      const result = await deleteMedication(medicationId);
-      if (result.success) {
-        alert('✅ Medication deleted successfully');
-        if (selectedMember) {
-          loadMedications(selectedMember);
-        }
-      } else {
-        throw new Error(result.error);
-      }
-    } catch (error: any) {
-      alert('❌ Failed to delete: ' + error.message);
-    }
-  };
-
-  const formatFrequency = (freq: string) => {
-    return freq.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-
-  const formatTiming = (timing: string[]) => {
-    if (!timing || timing.length === 0) return 'Not specified';
-    return timing.map(t => t.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())).join(', ');
-  };
-
+  const renderAppointments = () => {
   return (
     <div className="bg-white rounded-2xl p-6 shadow-lg">
       {familyMembers.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-6xl mb-4 opacity-30">💊</div>
-          <p className="text-gray-500 text-lg">Add family members first to manage medications</p>
+          <div className="text-6xl mb-4 opacity-30">📅</div>
+          <p className="text-gray-500 text-lg">Add family members first to schedule appointments</p>
           <button
             onClick={() => setActiveTab("members")}
             className="mt-4 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
@@ -2047,182 +1999,39 @@ const MedicationsSection = ({ familyMembers, showAddForm, setShowAddForm, setAct
             Go to Family Members
           </button>
         </div>
+      ) : appointments.length === 0 && !showAddForm ? (
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4 opacity-30">📅</div>
+          <p className="text-gray-500 text-lg">No appointments scheduled yet</p>
+          <p className="text-gray-400 text-sm mt-2">Schedule appointments for your family members</p>
+        </div>
       ) : (
-        <div>
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Medication Management</h2>
-            <p className="text-gray-600 text-sm">Track medications for your family members</p>
-          </div>
-
-          {!showAddForm && (
-            <div className="mb-6 bg-gray-50 p-4 rounded-xl">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                💊 Select Family Member
-              </label>
-              <select
-                value={selectedMember}
-                onChange={handleMemberSelect}
-                className="w-full p-4 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-gray-800 font-medium cursor-pointer hover:border-green-300 transition-colors"
-              >
-                <option value="">-- Choose a family member --</option>
-                {familyMembers.map((member: FamilyMember) => (
-                  <option key={member._id} value={member._id}>
-                    {member.name} ({member.relation}, {member.age} years old)
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {selectedMember && !showAddForm ? (
-            <div>
-              <div className="flex justify-between items-center mb-4 bg-green-50 p-4 rounded-lg">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    Medications for {selectedMemberName}
-                  </h3>
-                  <p className="text-sm text-gray-600">{medicationsData.length} medication(s)</p>
-                </div>
-                <button
-                  onClick={() => setShowAddForm(true)}
-                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center space-x-2"
-                >
-                  <span>➕</span>
-                  <span>Add Medication</span>
-                </button>
+        <div className="space-y-4">
+          {appointments.map((apt) => (
+            <div key={apt._id} className="border border-gray-200 rounded-xl p-4 flex justify-between items-start">
+              <div>
+                <h3 className="font-semibold text-gray-800">{apt.title}</h3>
+                <p className="text-sm text-gray-500">{apt.member?.name} ({apt.member?.relation})</p>
+                {apt.doctor && <p className="text-sm text-gray-500">Dr. {apt.doctor}</p>}
+                <p className="text-sm text-gray-500">
+                  {new Date(apt.date).toLocaleDateString()} at {apt.time}
+                </p>
+                {apt.location && <p className="text-sm text-gray-400">📍 {apt.location}</p>}
               </div>
-
-              {loadingMeds ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="mt-4 text-gray-600 font-medium">Loading medications...</p>
-                </div>
-              ) : medicationsData.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-xl">
-                  <div className="text-6xl mb-4 opacity-30">💊</div>
-                  <p className="text-gray-500 text-lg font-medium mb-2">No medications recorded yet</p>
-                  <p className="text-gray-400 text-sm mb-6">Start tracking medications for {selectedMemberName}</p>
-                  <button
-                    onClick={() => setShowAddForm(true)}
-                    className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold"
-                  >
-                    Add First Medication
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {medicationsData.map((med: any) => (
-                    <div key={med._id} className="border-2 border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-green-300 transition-all bg-white">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-3">
-                            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-2xl">
-                              💊
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-gray-900 text-lg">{med.medicationName}</h4>
-                              <p className="text-sm text-gray-500">{med.dosage} • {formatFrequency(med.frequency)}</p>
-                            </div>
-                            {med.isActive && (
-                              <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-semibold">
-                                Active
-                              </span>
-                            )}
-                          </div>
-                          <div className="ml-14 space-y-2">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <span className="text-gray-600">📅 Start:</span>
-                                <span className="ml-2 font-medium">{new Date(med.startDate).toLocaleDateString()}</span>
-                              </div>
-                              {med.endDate && (
-                                <div>
-                                  <span className="text-gray-600">📅 End:</span>
-                                  <span className="ml-2 font-medium">{new Date(med.endDate).toLocaleDateString()}</span>
-                                </div>
-                              )}
-                              {med.timing && med.timing.length > 0 && (
-                                <div className="col-span-2">
-                                  <span className="text-gray-600">🕐 Timing:</span>
-                                  <span className="ml-2 font-medium">{formatTiming(med.timing)}</span>
-                                </div>
-                              )}
-                              {med.prescribedBy && (
-                                <div className="col-span-2">
-                                  <span className="text-gray-600">👨‍⚕️ Doctor:</span>
-                                  <span className="ml-2 font-medium">{med.prescribedBy}</span>
-                                </div>
-                              )}
-                              {med.purpose && (
-                                <div className="col-span-2">
-                                  <span className="text-gray-600">💡 Purpose:</span>
-                                  <span className="ml-2 font-medium">{med.purpose}</span>
-                                </div>
-                              )}
-                            </div>
-                            {med.instructions && (
-                              <div className="bg-blue-50 p-3 rounded-lg mt-2">
-                                <p className="text-sm text-gray-700">
-                                  <span className="font-semibold">📋 Instructions:</span> {med.instructions}
-                                </p>
-                              </div>
-                            )}
-                            {med.notes && (
-                              <p className="text-sm text-gray-600 italic mt-2">📝 {med.notes}</p>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteMedication(med._id, med.medicationName)}
-                          className="text-red-600 hover:text-white hover:bg-red-600 p-3 rounded-lg transition-all ml-4 border-2 border-red-200 hover:border-red-600"
-                          title="Delete medication"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                apt.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                apt.status === 'completed' ? 'bg-green-100 text-green-700' :
+                'bg-red-100 text-red-700'
+              }`}>
+                {apt.status}
+              </span>
             </div>
-          ) : !showAddForm ? (
-            <div className="text-center py-16 bg-gradient-to-br from-green-50 to-teal-50 rounded-xl">
-              <div className="text-7xl mb-4 opacity-40">💊</div>
-              <p className="text-gray-600 text-xl font-medium mb-2">Ready to Track Medications</p>
-              <p className="text-gray-500">Select a family member above to view or add medications</p>
-            </div>
-          ) : null}
+          ))}
         </div>
       )}
     </div>
   );
 };
-
-
-  const renderAppointments = () => {
-    return (
-      <div className="bg-white rounded-2xl p-6 shadow-lg">
-        {familyMembers.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4 opacity-30">📅</div>
-            <p className="text-gray-500 text-lg">Add family members first to schedule appointments</p>
-            <button
-              onClick={() => setActiveTab("members")}
-              className="mt-4 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-            >
-              Go to Family Members
-            </button>
-          </div>
-        ) : !showAddForm ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4 opacity-30">📅</div>
-            <p className="text-gray-500 text-lg">No appointments scheduled yet</p>
-            <p className="text-gray-400 text-sm mt-2">Schedule appointments for your family members</p>
-          </div>
-        ) : null}
-      </div>
-    );
-  };
   const renderDocuments = () => {
   return <DocumentsManager familyMembers={familyMembers} />;
 };
@@ -2328,7 +2137,7 @@ const MedicationsSection = ({ familyMembers, showAddForm, setShowAddForm, setAct
     </div>
   </div>
 </header>
-
+ 
 
 
         {/* Page Content */}

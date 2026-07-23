@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getFamilyMembers, FamilyMember, deleteFamilyMember } from "../../services/familyService";
 import { getVitalsByMember, deleteVitalSign, VitalSign } from "../../services/vitalsService";
 import { getMedicationsByMember, deleteMedication } from "../../services/medicationService";
-
+import { getAppointmentsByMember } from "../../services/appointmentService";
 export default function MemberProfile() {
   const { memberId } = useParams();
   const navigate = useNavigate();
@@ -13,6 +13,8 @@ export default function MemberProfile() {
   const [loading, setLoading] = useState(true);
   const [loadingVitals, setLoadingVitals] = useState(false);
   const [loadingMedications, setLoadingMedications] = useState(false);
+  const [appointments, setAppointments] = useState<any[]>([]);
+const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'vitals' | 'medications' | 'appointments'>('overview');
 
   useEffect(() => {
@@ -30,7 +32,8 @@ export default function MemberProfile() {
         // Load vitals and medications if member found
         if (foundMember) {
           loadVitals();
-          loadMedications();
+loadMedications();
+loadAppointments(); // 👈 ADD
         }
       }
     } catch (error) {
@@ -77,6 +80,19 @@ export default function MemberProfile() {
       setLoadingMedications(false);
     }
   };
+
+  const loadAppointments = async () => {
+  if (!memberId) return;
+  try {
+    setLoadingAppointments(true);
+    const data = await getAppointmentsByMember(memberId);
+    setAppointments(data);
+  } catch (error) {
+    console.error("Failed to load appointments:", error);
+  } finally {
+    setLoadingAppointments(false);
+  }
+};
 
   const handleDelete = async () => {
     if (!member) return;
@@ -327,7 +343,7 @@ export default function MemberProfile() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm text-gray-600">Appointments</p>
-                          <p className="text-2xl font-bold text-gray-900">0</p>
+                          <p className="text-2xl font-bold text-gray-900">{appointments.length}</p>
                         </div>
                         <span className="text-3xl">📅</span>
                       </div>
@@ -519,17 +535,67 @@ export default function MemberProfile() {
 
             {/* Appointments Tab */}
             {activeTab === 'appointments' && (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4 opacity-30">📅</div>
-                <p className="text-gray-500 text-lg">No appointments scheduled yet</p>
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className="mt-4 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  Schedule Appointment
-                </button>
+  <div>
+    <div className="flex justify-between items-center mb-6">
+      <h3 className="text-xl font-semibold text-gray-800">Appointments</h3>
+      <button
+        onClick={() => navigate("/dashboard")}
+        className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+      >
+        ➕ Schedule Appointment
+      </button>
+    </div>
+
+    {loadingAppointments ? (
+      <div className="text-center py-12">
+        <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading appointments...</p>
+      </div>
+    ) : appointments.length === 0 ? (
+      <div className="text-center py-12 bg-gray-50 rounded-xl">
+        <div className="text-6xl mb-4 opacity-30">📅</div>
+        <p className="text-gray-500 text-lg">No appointments scheduled yet</p>
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="mt-4 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          Schedule First Appointment
+        </button>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 gap-4">
+        {appointments.map((apt: any) => (
+          <div key={apt._id} className="border-2 border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-purple-300 transition-all">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-2xl">📅</div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-lg">{apt.title}</h4>
+                    {apt.doctor && <p className="text-sm text-gray-500">👨‍⚕️ Dr. {apt.doctor}</p>}
+                  </div>
+                </div>
+                <div className="ml-14 space-y-1 text-sm">
+                  <p><span className="text-gray-600">📅 Date:</span> <span className="font-medium">{new Date(apt.date).toLocaleDateString()}</span></p>
+                  <p><span className="text-gray-600">🕐 Time:</span> <span className="font-medium">{apt.time}</span></p>
+                  {apt.location && <p><span className="text-gray-600">📍 Location:</span> <span className="font-medium">{apt.location}</span></p>}
+                  {apt.notes && <p><span className="text-gray-600">📝 Notes:</span> <span className="font-medium">{apt.notes}</span></p>}
+                </div>
               </div>
-            )}
+              <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                apt.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                apt.status === 'completed' ? 'bg-green-100 text-green-700' :
+                'bg-red-100 text-red-700'
+              }`}>
+                {apt.status}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
           </div>
 
           {/* Quick Actions Footer */}

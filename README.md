@@ -85,6 +85,52 @@ src/
 
 
 ---
+## 📸 Screenshots
+
+### Authentication
+| Login | Signup |
+|---|---|
+| ![Login Page](./screenshots/login%20page.png) | ![Signup](./screenshots/signup.png) |
+
+### Dashboard
+![Dashboard](./screenshots/dashboard1.png)
+
+### Family Members
+| Add Member | Member Form | Member Profile |
+|---|---|---|
+| ![Add Member](./screenshots/add%20member.png) | ![Member Form](./screenshots/member%20form.png) | ![Member Profile](./screenshots/member%20profile.png) |
+
+| Member Deletion |
+|---|
+| ![Member Deleted](./screenshots/member%20deleted.png) |
+
+### Vital Signs
+| Vital Form | Vital Added |
+|---|---|
+| ![Vital Form](./screenshots/vital%20form.png) | ![Vital Added](./screenshots/vital%20added.png) |
+
+### Medications
+| Medication Dashboard | Medication Form |
+|---|---|
+| ![Medication Dashboard](./screenshots/medication%20dashboard.png) | ![Medication Form](./screenshots/medication%20form.png) |
+
+| Medication Profile | Medication Added |
+|---|---|
+| ![Medication Profile](./screenshots/medication%20profile.png) | ![Medication Added](./screenshots/medication%20added.png) |
+
+### Appointments
+| Appointment Form | Appointment Added |
+|---|---|
+| ![Appointment Form](./screenshots/appointment%20form.png) | ![Appointment Added](./screenshots/appointment%20added.png) |
+
+| Appointment Profile |
+|---|
+| ![Appointment Profile](./screenshots/appointment%20profile.png) |
+
+### Medical Documents
+| Document Form | Document Added |
+|---|---|
+| ![Med Docs Form](./screenshots/med%20docs%20form.png) | ![Med Docs Added](./screenshots/med%20docs%20added.png) |
 
 ## ⚡ Installation
 
@@ -126,13 +172,6 @@ Integrate charts for multiple vitals per family member.
 
 Improve responsiveness and accessibility.
 
-📜 License
-
-This project is licensed under the MIT License.
-
-👩‍💻 Author
-
-Your Name – Frontend Developer – KutumbCare
 
 
 ---

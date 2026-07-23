@@ -28,7 +28,8 @@ const medicationSchema = new mongoose.Schema({
   },
   timing: [{
     type: String,
-    enum: ['morning', 'afternoon', 'evening', 'night', 'before_meal', 'after_meal']
+    // ✅ UPDATED: Now accepts actual times like "08:00", "14:00", "20:00"
+    // Removed enum restriction
   }],
   startDate: {
     type: Date,

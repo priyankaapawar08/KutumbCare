@@ -1,19 +1,36 @@
-export default function VitalsList() {
-  const mockVitals = [
-    { type: "BP", value: "120/80", date: "2025-09-30" },
-    { type: "Glucose", value: "90 mg/dL", date: "2025-09-30" }
-  ];
+import { useEffect, useState } from "react";
+import { getVitalsByMember } from "../../services/vitalsService";
+
+export default function VitalsList({ memberId }: any) {
+  const [vitals, setVitals] = useState<any[]>([]);
+
+  const loadVitals = async () => {
+    const res = await getVitalsByMember(memberId);
+    if (res.success) {
+      setVitals(res.vitals || []);
+    }
+  };
+
+  useEffect(() => {
+    if (memberId) loadVitals();
+  }, [memberId]);
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold mb-4">Vitals</h1>
-      <ul className="bg-white p-4 shadow rounded-lg w-96">
-        {mockVitals.map((vital, i) => (
-          <li key={i} className="mb-2 border-b pb-1">
-            {vital.type}: {vital.value} ({vital.date})
-          </li>
-        ))}
-      </ul>
+    <div className="p-6">
+      <h2 className="text-xl font-bold mb-4">Vitals</h2>
+
+      {vitals.length === 0 ? (
+        <p>No vitals found</p>
+      ) : (
+        <ul>
+          {vitals.map((v: any) => (
+            <li key={v._id}>
+              {v.vitalType} - {v.value?.measurement} {v.value?.unit} (
+              {new Date(v.date).toLocaleDateString()})
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

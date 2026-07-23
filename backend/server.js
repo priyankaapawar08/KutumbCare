@@ -22,7 +22,8 @@ const medicationRoutes = require('./routes/medications');
 const vitalRoutes = require('./routes/vitals');
 const documentRoutes = require('./routes/documents');
 const appointmentRoutes = require('./routes/appointments');
-
+const reminderRoutes = require('./routes/reminderRoutes');
+app.use('/api/reminders', reminderRoutes);
 // Mount routes - KEEP ONLY ONE documents route
 app.use('/api/auth', authRoutes);
 //app.use('/api/families', familyRoutes);
