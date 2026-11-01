@@ -27,3 +27,9 @@ Thumbs.db
 
 # Python venv
 .venv/
+
+# Sensitive files and dependencies
+.env
+.env.*
+!.env.example
+node_modules/
